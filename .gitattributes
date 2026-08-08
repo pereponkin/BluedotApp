@@ -1,0 +1,44 @@
+# Переносы строк. В репозитории всё текстовое хранится с LF;
+# на выгрузке Windows-специфичные скрипты получают CRLF.
+# Без этого файла редакторы переписывают .py в CRLF и git показывает
+# «изменения» там, где отличаются только переносы.
+
+* text=auto eol=lf
+
+# Windows Script Host к переносам чувствителен, cscript спотыкается на LF
+*.vbs   text eol=crlf
+
+# PowerShell: CRLF безопаснее для подписанных скриптов и старых версий
+*.ps1   text eol=crlf
+*.psm1  text eol=crlf
+*.psd1  text eol=crlf
+
+# Батники должны быть CRLF, иначе cmd режет последнюю команду
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# Бинарники не трогать
+*.png   binary
+*.ico   binary
+*.exe   binary
+*.lnk   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.pdf   binary
+*.zip   binary
+*.ttf   binary
+*.otf   binary
+*.woff  binary
+*.woff2 binary
+
+# Явно текстовые, чтобы не зависеть от эвристики
+*.py    text
+*.cs    text
+*.md    text
+*.svg   text
+*.yaml  text
+*.yml   text
+*.toml  text
+*.json  text
+*.lock  text

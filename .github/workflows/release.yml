@@ -1,0 +1,135 @@
+name: Release standalone apps
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    env:
+      BLUEDOT_VERSION: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install build dependencies
+        run: |
+          python -m pip install -r requirements.lock -e . pyinstaller
+      - name: Build onedir app
+        run: python -m PyInstaller --noconfirm --clean BlueDotAgent.spec
+      - name: Verify browser payload is not bundled
+        shell: pwsh
+        run: |
+          $browserCaches = Get-ChildItem dist\BlueDotAgent -Recurse -Directory -Force | Where-Object Name -eq '.local-browsers'
+          if ($browserCaches) { throw 'Playwright browser cache leaked into the compact package' }
+      - name: Build portable ZIP
+        shell: pwsh
+        run: Compress-Archive -Path dist\BlueDotAgent\* -DestinationPath dist\BlueDotAgent-Windows-x64.zip
+      - name: Self-test extracted portable package
+        shell: pwsh
+        run: |
+          $testRoot = Join-Path $env:RUNNER_TEMP 'BlueDotAgent-Windows-self-test'
+          Expand-Archive -Path dist\BlueDotAgent-Windows-x64.zip -DestinationPath $testRoot
+          $env:BLUEDOT_STATE_DIR = Join-Path $env:RUNNER_TEMP 'BlueDotAgent-Windows-state'
+          $process = Start-Process -FilePath (Join-Path $testRoot 'BlueDotAgent.exe') -ArgumentList '--self-test','--require-frozen','--browser','firefox' -Wait -PassThru -WindowStyle Hidden
+          if ($process.ExitCode -ne 0) { throw "Packaged self-test failed with exit code $($process.ExitCode)" }
+      - name: Build Inno Setup installer
+        shell: pwsh
+        run: |
+          $env:BLUEDOT_PAYLOAD_DIR = (Resolve-Path dist\BlueDotAgent).Path
+          $env:BLUEDOT_INSTALLER_OUTPUT = (Resolve-Path dist).Path
+          $env:BLUEDOT_VERSION = if ('${{ github.ref_type }}' -eq 'tag') { '${{ github.ref_name }}'.TrimStart('v') } else { '0.0.0-dev' }
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' installer\BlueDotAgent.iss
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BlueDotAgent-Windows-x64
+          path: |
+            dist/BlueDotAgent-Windows-x64.zip
+            dist/BlueDotAgent-Setup-Windows-x64.exe
+
+  macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15-intel
+            architecture: x64
+          - runner: macos-15
+            architecture: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install build dependencies
+        run: |
+          python -m pip install -r requirements.lock -e . pyinstaller
+      - name: Build macOS icon
+        run: |
+          mkdir BlueDotAgent.iconset
+          sips -z 16 16 BlueDotAgentIcon.png --out BlueDotAgent.iconset/icon_16x16.png
+          sips -z 32 32 BlueDotAgentIcon.png --out BlueDotAgent.iconset/icon_16x16@2x.png
+          sips -z 32 32 BlueDotAgentIcon.png --out BlueDotAgent.iconset/icon_32x32.png
+          sips -z 64 64 BlueDotAgentIcon.png --out BlueDotAgent.iconset/icon_32x32@2x.png
+          sips -z 128 128 BlueDotAgentIcon.png --out BlueDotAgent.iconset/icon_128x128.png
+          sips -z 256 256 BlueDotAgentIcon.png --out BlueDotAgent.iconset/icon_128x128@2x.png
+          sips -z 256 256 BlueDotAgentIcon.png --out BlueDotAgent.iconset/icon_256x256.png
+          sips -z 512 512 BlueDotAgentIcon.png --out BlueDotAgent.iconset/icon_256x256@2x.png
+          sips -z 512 512 BlueDotAgentIcon.png --out BlueDotAgent.iconset/icon_512x512.png
+          sips -z 1024 1024 BlueDotAgentIcon.png --out BlueDotAgent.iconset/icon_512x512@2x.png
+          iconutil -c icns BlueDotAgent.iconset
+          echo "BLUEDOT_BUILD_ICON=$PWD/BlueDotAgent.icns" >> "$GITHUB_ENV"
+      - name: Build app bundle
+        run: python -m PyInstaller --noconfirm --clean BlueDotAgent.spec
+      - name: Verify browser payload is not bundled
+        run: |
+          if find dist/BlueDotAgent.app -type d -name .local-browsers | grep -q .; then
+            echo 'Playwright browser cache leaked into the compact package'
+            exit 1
+          fi
+      - name: Apply ad-hoc signature
+        run: codesign --force --deep --sign - dist/BlueDotAgent.app
+      - name: Package app
+        run: ditto -c -k --sequesterRsrc --keepParent dist/BlueDotAgent.app dist/BlueDotAgent-macOS-${{ matrix.architecture }}.zip
+      - name: Self-test extracted app package
+        run: |
+          test_root="$RUNNER_TEMP/BlueDotAgent-macOS-self-test"
+          mkdir -p "$test_root"
+          ditto -x -k dist/BlueDotAgent-macOS-${{ matrix.architecture }}.zip "$test_root"
+          export BLUEDOT_STATE_DIR="$RUNNER_TEMP/BlueDotAgent-macOS-state"
+          "$test_root/BlueDotAgent.app/Contents/MacOS/BlueDotAgent" --self-test --require-frozen --browser firefox
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BlueDotAgent-macOS-${{ matrix.architecture }}
+          path: dist/BlueDotAgent-macOS-${{ matrix.architecture }}.zip
+
+  publish:
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+      - name: Write SHA-256 checksums
+        working-directory: release-assets
+        run: sha256sum * > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BlueDotAgent-release
+          path: release-assets/*
+      - name: Publish tagged GitHub Release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" release-assets/* --verify-tag --notes-file RELEASE_NOTES.md
