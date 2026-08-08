@@ -1,0 +1,328 @@
+providers:
+  bluedot:
+    url: "https://app.sessions.blue/"
+    numeric_sliders:
+      Mood:
+        range: [1, 5]
+      Density:
+        range: [1, 5]
+      Energy:
+        range: [1, 5]
+      Gravity:
+        range: [1, 5]
+      Ensemble:
+        range: [1, 5]
+      Melody:
+        range: [1, 5]
+      Tension:
+        range: [1, 5]
+        hint: "Calm <-> Tension"
+      Rhythm:
+        range: [1, 5]
+    range_filters:
+      BPM:
+        range: [50, 200]
+      Length:
+        range: [0, 360]
+        label_max: "6 min+"
+    categorical_filters:
+      Keys:
+        - A
+        - Am
+        - B
+        - Bm
+        - C
+        - Cm
+        - D
+        - Dm
+        - E
+        - Em
+        - F
+        - Fm
+        - G
+        - Gm
+        - Ab
+        - Abm
+        - Bb
+        - Bbm
+        - Eb
+        - Ebm
+        - Db
+        - Dbm
+        - F#
+        - F#m
+      Tags:
+        - Game
+        - Americana
+        - True Crime
+        - Beat
+        - Blues
+        - Bossa
+        - Brass
+        - Building
+        - Chase
+        - Classical
+        - Dance
+        - Drone
+        - Folk
+        - Funky
+        - Glitch
+        - Grunge
+        - Jazz
+        - Mystery
+        - World
+        - Retro
+        - Western
+        - Waltz
+        - Quirky
+        - Adventure
+        - Kids
+        - Indie
+        - Groove
+        - Rock
+        - Romantic
+        - Latin
+        - Flamenco
+        - Lullaby
+        - Curious
+        - Thriller
+        - Voices
+        - New
+        - Adventurous
+        - Bold
+        - Abstract
+        - Driving
+        - Agitated
+        - Ethereal
+        - Anthemic
+        - Anxious
+        - Awe Inspiring
+        - Bittersweet
+        - Sophisticated
+        - Bright
+        - Celebratory
+        - Cheerful
+        - Warm
+        - Concerned
+        - Confident
+        - Cool
+        - Courageous
+        - Creepy
+        - Dangerous
+        - Dark
+        - Delicate
+        - Bleak
+        - Emotional
+        - Epic
+        - Exciting
+        - Exhilarating
+        - Funny
+        - Gloomy
+        - Hopeful
+        - Innocent
+        - Intimate
+        - Leisurely
+        - Lighthearted
+        - Majestic
+        - Melancholy
+        - Mischievous
+        - Motivational
+        - Mournful
+        - Mysterious
+        - Nervous
+        - Nostalgic
+        - Peaceful
+        - Poignant
+        - Ponderous
+        - Reflective
+        - Relaxed
+        - Sentimental
+        - Serious
+        - Solemn
+        - Soothing
+        - Suspenseful
+        - Tender
+        - Enigmatic
+        - Tense
+        - Thoughtful
+        - Uplifting
+        - Sympathetic
+        - Weird
+        - Foreboding
+        - Forensic
+        - Intrigue
+        - Educational
+        - Sleepy
+        - Unsettling
+        - Whimsical
+      Genres:
+        - African
+        - Ambient
+        - Arab
+        - Asian
+        - Blues
+        - Kids
+        - Orchestral
+        - Classical
+        - Dance
+        - Experimental
+        - Indian
+        - Jazz
+        - Chill
+        - Latin
+        - Electro
+        - House
+        - New Age
+        - Pop
+        - World Music
+        - R&B
+        - Synth Pop
+        - Beat
+        - Indie
+        - Techno
+        - Rock
+        - Songwriter
+        - Jazz Fusion
+        - Soundtrack
+        - Folk
+        - Country
+        - Disco
+        - Indie Rock
+        - Funk
+        - Drone
+        - Gospel
+        - Soul
+        - Bluegrass
+        - Swing
+        - Bebop
+        - Acoustic
+        - Bossa Nova
+        - Celtic
+        - Americana
+        - Modern Jazz
+        - Alternative
+        - Lounge
+        - Cool Jazz
+        - Country Western
+        - Lo Fi
+        - Lullaby
+        - Neo Classical
+        - Nu Jazz
+        - Post Rock
+        - Surf Rock
+        - Tango
+        - Waltz
+      Instruments:
+        - Accordian
+        - Acoustic Guitar
+        - Banjo
+        - Bass Drum
+        - Bassoon
+        - Bells
+        - Bongos
+        - Brush Kit
+        - Cajon
+        - Celeste
+        - Cello
+        - Clapping
+        - Clarinet
+        - Classical Guitar
+        - Congas
+        - Didgeridoo
+        - Djembe
+        - Drum Kit
+        - Drumline
+        - Dulcimer
+        - Electric Bass
+        - Electric Guitar
+        - Felt Piano
+        - Field Recordings
+        - Fjoria DrumSyn
+        - Fjoria RingSyn
+        - Fjoria Syn
+        - Fjoria SynPad
+        - Flute
+        - Found Percussion
+        - French Horn
+        - Glock
+        - Gong
+        - Handbells
+        - Harmonica
+        - Harp
+        - Harpsichord
+        - Kalimba
+        - Lap Steel
+        - Mandolin
+        - Marimba
+        - Mbira
+        - Metal Plate
+        - Music Box
+        - Oboe
+        - Organ
+        - Percussion
+        - Piano
+        - Recorder
+        - Rhodes
+        - Rhodia BassSyn
+        - Rhodia DrumSyn
+        - Rhodia RingSyn
+        - Rhodia Syn
+        - Rhodia SynPad
+        - Saxophone
+        - Shaker
+        - Skrea DrumSyn
+        - Skrea RingSyn
+        - Skrea Syn
+        - Skrea SynPad
+        - Strings
+        - Taiko
+        - Tambourine
+        - Tape Loop
+        - Tongue Drum
+        - Toy Piano
+        - Trombone
+        - Trumpet
+        - Tuba
+        - Ukulele
+        - Upright Bass
+        - Vibraphone
+        - Viola
+        - Violin
+        - Volda DrumSyn
+        - Volda RingSyn
+        - Volda Syn
+        - Volda SynPad
+        - Whistle
+        - Woodwinds
+        - Wurlitzer
+        - Xylophone
+        - Zither
+    navigation_contexts:
+      Collections:
+        entity: Playlist
+        filter_name: playlist
+        note: "Browse navigation only; not a track attribute for intent parsing"
+
+  artlist:
+    dimensions:
+      - Genre
+      - Mood
+      - Video Theme
+      - Instrument
+      - Vocals/Instrumental
+      - Duration
+      - BPM
+      - Stems
+      - Highlights
+      - Sort
+
+  epidemic:
+    dimensions:
+      - Moods
+      - Genres
+      - Duration
+      - BPM
+      - Vocals
+      - Key
+      - Instruments
+      - Sort

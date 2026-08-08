@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-15-intel, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements.lock -e . pytest
+      - name: Install Playwright test browsers
+        run: python -m playwright install firefox chromium
+      - name: Python tests
+        run: python -m pytest -q
+      - name: Panel tests in Chromium
+        env:
+          BLUEDOT_TEST_BROWSER: chromium
+        run: python -m pytest -q tests/test_panel_browser.py
+      - name: JavaScript syntax
+        run: node --check bluedot_agent/panel.js
+      - name: Playwright Firefox smoke
+        run: python scripts/smoke_browser.py firefox
+      - name: Installed Chrome smoke
+        run: python scripts/smoke_browser.py chrome

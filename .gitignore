@@ -1,0 +1,13 @@
+.venv/
+build/
+dist/
+.pytest_cache/
+.browser-profile/
+BlueDotAgent.exe
+*.lnk
+logs/
+debug_*.png
+*.egg-info/
+__pycache__/
+*.pyc
+calibration_log.jsonl

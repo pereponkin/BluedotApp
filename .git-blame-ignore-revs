@@ -1,0 +1,5 @@
+# Косметические коммиты, которые не должны засорять git blame.
+# Включено: git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style: normalize line endings to LF
+4b6a88fcf8bca61f33e10371d1a4891ddaadeec2
