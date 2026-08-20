@@ -34,3 +34,41 @@ Name: "desktopicon"; Description: "Создать ярлык на рабочем
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Запустить {#MyAppName}"; Flags: nowait postinstall skipifsilent
+
+[Code]
+var
+  DeleteUserData: Boolean;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usUninstall then
+  begin
+    DeleteUserData := False;
+    if (not UninstallSilent) and
+       DirExists(ExpandConstant('{localappdata}\BlueDotAgent')) then
+    begin
+      DeleteUserData :=
+        MsgBox(
+          'Удалить также все пользовательские данные Blue Dot Agent?' #13#10#13#10 +
+          'Будут безвозвратно удалены настройки, API-ключи, история, ' +
+          'браузерные профили и загруженный Playwright Firefox.' #13#10#13#10 +
+          'Выберите «Нет», чтобы сохранить их для переустановки.',
+          mbConfirmation,
+          MB_YESNO or MB_DEFBUTTON2) = IDYES;
+    end;
+  end
+  else if (CurUninstallStep = usPostUninstall) and DeleteUserData then
+  begin
+    if (not DelTree(
+      ExpandConstant('{localappdata}\BlueDotAgent'), True, True, True)) and
+      (not UninstallSilent) then
+    begin
+      MsgBox(
+        'Не удалось полностью удалить пользовательские данные из:' #13#10 +
+        ExpandConstant('{localappdata}\BlueDotAgent') + #13#10#13#10 +
+        'Закройте браузер агента и удалите эту папку вручную.',
+        mbError,
+        MB_OK);
+    end;
+  end;
+end;

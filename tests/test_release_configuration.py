@@ -46,6 +46,19 @@ class ReleaseConfigurationTest(unittest.TestCase):
         self.assertIn("without_playwright_browsers", text)
         self.assertIn('".local-browsers" not in str(part)', text)
 
+    def test_windows_uninstaller_offers_optional_user_data_removal(self):
+        text = (ROOT / "installer" / "BlueDotAgent.iss").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("CurUninstallStepChanged", text)
+        self.assertIn("UninstallSilent", text)
+        self.assertIn("MB_YESNO or MB_DEFBUTTON2", text)
+        self.assertIn(
+            "ExpandConstant('{localappdata}\\BlueDotAgent'), True, True, True",
+            text,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
