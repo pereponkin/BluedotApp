@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import queue
 import subprocess
+import sys
 import threading
 from collections.abc import Callable, MutableMapping
 from pathlib import Path
@@ -55,8 +56,22 @@ def install_firefox(
         raise RuntimeError(f"Не удалось скачать Firefox для Blue Dot Agent.{suffix}")
 
 
-def ensure_firefox_installed(*, state_dir: Path = STATE_DIR) -> None:
-    cache = configure_browser_cache(state_dir=state_dir)
+def ensure_firefox_installed(
+    *,
+    state_dir: Path = STATE_DIR,
+    environ: MutableMapping[str, str] = os.environ,
+    frozen: bool | None = None,
+) -> None:
+    is_frozen = bool(getattr(sys, "frozen", False)) if frozen is None else frozen
+    if not is_frozen:
+        _, cli = compute_driver_executable()
+        development_cache = Path(cli).parent / ".local-browsers"
+        if development_cache.is_dir():
+            environ["PLAYWRIGHT_BROWSERS_PATH"] = str(development_cache)
+            if firefox_is_installed():
+                return
+
+    cache = configure_browser_cache(state_dir=state_dir, environ=environ)
     if firefox_is_installed():
         return
     _download_firefox_dialog(cache)
