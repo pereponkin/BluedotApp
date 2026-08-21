@@ -48,6 +48,33 @@ class PanelScriptTest(unittest.TestCase):
 
 
 class PanelHandlerTest(unittest.IsolatedAsyncioTestCase):
+    async def test_choose_download_directory_uses_native_picker(self):
+        opened_at = []
+
+        async def choose_directory(initial_directory):
+            opened_at.append(initial_directory)
+            return Path(r"E:\Music\Blue Dot")
+
+        handler = PanelHandler(
+            FakeMapper(None),
+            lambda intent: None,
+            directory_picker=choose_directory,
+        )
+
+        result = await handler(
+            {"frame": Frame()},
+            {
+                "type": "choose_download_directory",
+                "download_directory": r"D:\Downloads",
+            },
+        )
+
+        self.assertEqual(opened_at, [Path(r"D:\Downloads")])
+        self.assertEqual(
+            result,
+            {"ok": True, "download_directory": r"E:\Music\Blue Dot"},
+        )
+
     async def test_open_download_command_uses_native_callback(self):
         opened = []
         handler = PanelHandler(

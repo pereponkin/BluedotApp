@@ -15,6 +15,7 @@ from playwright.async_api import BrowserContext, Error as PlaywrightError, Page,
 from .browser import BrowserKind, launch_context, profile_dir_for
 from .config import STATE_DIR, load_yaml
 from .diagnostics import NetworkEvent, PendingTasks, diagnostic_path, redact, write_json_log
+from .directory_picker import choose_download_directory
 from .downloads import DownloadManager, default_download_directory
 from .graphql import PlaylistGraphQLGate
 from .intent import BlueDotIntent, broaden_intent, selectable_filters
@@ -175,6 +176,7 @@ class BlueDotAdapter:
                 mapper,
                 lambda intent: self._run_panel_search(page, intent),
                 settings,
+                directory_picker=choose_download_directory,
                 download_directory_changed=self.download_manager.set_directory,
                 open_download=self.download_manager.open_last_download,
                 restore=lambda snapshot: self._apply_panel_snapshot(page, snapshot),

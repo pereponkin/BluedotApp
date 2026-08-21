@@ -569,6 +569,69 @@ class PanelBrowserTest(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(focus, {"style": "solid", "width": "2px"})
                 await page.close()
 
+    async def test_query_field_grows_wraps_and_keeps_search_visible(self):
+        async def handler(source, command):
+            if command["type"] == "get_settings":
+                return {"ok": True, "settings": PUBLIC_SETTINGS}
+            return {"ok": False, "error": "unused"}
+
+        page = await self.browser.new_page(viewport={"width": 420, "height": 360})
+        await install_panel(page, handler)
+        await page.route(
+            "https://app.sessions.blue/**",
+            lambda route: route.fulfill(
+                status=200,
+                content_type="text/html",
+                body="<html><body><div id='root'>Blue Dot</div></body></html>",
+            ),
+        )
+        await page.goto("https://app.sessions.blue/browse")
+
+        host = page.locator("#bluedot-agent-panel")
+        query = host.locator("[data-role=query]")
+        initial_height = (await query.bounding_box())["height"]
+        await query.fill("длинный музыкальный запрос " * 80)
+        metrics = await query.evaluate(
+            """field => {
+              const style = getComputedStyle(field);
+              const search = field.form.querySelector("[data-role=search]");
+              return {
+                tag: field.tagName,
+                height: field.getBoundingClientRect().height,
+                clientHeight: field.clientHeight,
+                scrollHeight: field.scrollHeight,
+                resize: style.resize,
+                overflowY: style.overflowY,
+                overflowWrap: style.overflowWrap,
+                searchBottom: search.getBoundingClientRect().bottom,
+                viewportHeight: window.innerHeight
+              };
+            }"""
+        )
+
+        self.assertEqual(metrics["tag"], "TEXTAREA")
+        self.assertGreater(metrics["height"], initial_height)
+        self.assertEqual(metrics["resize"], "vertical")
+        self.assertEqual(metrics["overflowY"], "auto")
+        self.assertEqual(metrics["overflowWrap"], "anywhere")
+        self.assertGreater(metrics["scrollHeight"], metrics["clientHeight"])
+        self.assertLessEqual(metrics["searchBottom"], metrics["viewportHeight"])
+
+        await host.locator("[data-role=toggle]").click()
+        await page.set_viewport_size({"width": 420, "height": 260})
+        await host.locator("[data-role=toggle]").click()
+        await page.wait_for_function(
+            """() => {
+              const host = document.getElementById("bluedot-agent-panel");
+              const search = host?.shadowRoot?.querySelector("[data-role=search]");
+              return search && search.getBoundingClientRect().bottom <= window.innerHeight;
+            }"""
+        )
+
+        await query.fill("первая строка")
+        await query.press("Shift+Enter")
+        self.assertEqual(await query.input_value(), "первая строка\n")
+
     async def test_collapsed_panel_keeps_expand_button_inside_visible_strip(self):
         async def handler(source, command):
             return {"ok": False, "error": "unused"}
@@ -641,7 +704,7 @@ class PanelBrowserTest(unittest.IsolatedAsyncioTestCase):
         )
         await page.goto("https://app.sessions.blue/browse")
         host = page.locator("#bluedot-agent-panel")
-        field = host.locator("input[data-role=query]")
+        field = host.locator("textarea[data-role=query]")
         search = host.locator("button[data-role=search]")
         status = host.locator("[data-role=status]")
 
@@ -669,7 +732,7 @@ class PanelBrowserTest(unittest.IsolatedAsyncioTestCase):
 
         await page.goto("https://app.sessions.blue/another-page")
         host = page.locator("#bluedot-agent-panel")
-        field = host.locator("input[data-role=query]")
+        field = host.locator("textarea[data-role=query]")
         status = host.locator("[data-role=status]")
 
         self.assertEqual(await field.input_value(), "calm strings")
@@ -720,7 +783,7 @@ class PanelBrowserTest(unittest.IsolatedAsyncioTestCase):
         await page.reload()
 
         host = page.locator("#bluedot-agent-panel")
-        self.assertEqual(await host.locator("input[data-role=query]").input_value(), "")
+        self.assertEqual(await host.locator("textarea[data-role=query]").input_value(), "")
         self.assertTrue(await host.locator("[data-role=result]").is_hidden())
         self.assertEqual(
             await page.evaluate(
@@ -762,7 +825,7 @@ class PanelBrowserTest(unittest.IsolatedAsyncioTestCase):
         )
         await page.goto("https://app.sessions.blue/browse")
 
-        field = page.locator("#bluedot-agent-panel").locator("input[data-role=query]")
+        field = page.locator("#bluedot-agent-panel").locator("textarea[data-role=query]")
         await field.click()
         await page.keyboard.type("calm strings")
 
@@ -776,6 +839,8 @@ class PanelBrowserTest(unittest.IsolatedAsyncioTestCase):
             if command["type"] == "get_settings":
                 return {"ok": True, "settings": PUBLIC_SETTINGS}
             commands.append(command)
+            if command["type"] == "choose_download_directory":
+                return {"ok": True, "download_directory": r"E:\Music\Blue Dot"}
             updated = {
                 **PUBLIC_SETTINGS,
                 "selected_provider": command["provider"],
@@ -841,7 +906,9 @@ class PanelBrowserTest(unittest.IsolatedAsyncioTestCase):
                 }"""
             )
         )
-        await download_directory.fill(r"E:\Music\Blue Dot")
+        self.assertEqual(await download_directory.get_attribute("readonly"), "")
+        await download_directory.click()
+        self.assertEqual(await download_directory.input_value(), r"E:\Music\Blue Dot")
         model = host.locator("[data-role=model]")
         self.assertEqual(await model.evaluate("element => element.tagName"), "SELECT")
         self.assertEqual(
@@ -855,6 +922,10 @@ class PanelBrowserTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             commands,
             [
+                {
+                    "type": "choose_download_directory",
+                    "download_directory": r"D:\Downloads",
+                },
                 {
                     "type": "save_settings",
                     "browser": "chrome",

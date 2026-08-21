@@ -108,6 +108,7 @@
         }
         button:focus-visible,
         input:focus-visible,
+        textarea:focus-visible,
         select:focus-visible {
           outline: 2px solid var(--color-focus);
           outline-offset: 2px;
@@ -115,6 +116,7 @@
         button:active { transform: translateY(1px); }
         button:disabled,
         input:disabled,
+        textarea:disabled,
         select:disabled {
           cursor: not-allowed;
           opacity: .55;
@@ -140,7 +142,7 @@
         }
         label { font-size: 11px; }
         h2 { font-size: 12px; }
-        input, select {
+        input, textarea, select {
           width: 100%;
           min-height: var(--control-height);
           padding: 0 var(--space-xs);
@@ -155,16 +157,26 @@
             background-color var(--dur-short) var(--ease-out),
             border-color var(--dur-short) var(--ease-out);
         }
-        input:hover, select:hover { border-color: var(--color-accent); }
-        input:active, select:active { background: var(--color-paper-3); }
-        input[data-state="loading"], select[data-state="loading"] { cursor: wait; }
-        input[aria-invalid="true"], select[aria-invalid="true"] {
+        textarea[data-role="query"] {
+          height: var(--control-height);
+          padding-block: 11px;
+          line-height: 1.45;
+          overflow-wrap: anywhere;
+          overflow-y: auto;
+          resize: vertical;
+          white-space: pre-wrap;
+        }
+        input[data-role="download-directory"][readonly] { cursor: pointer; }
+        input:hover, textarea:hover, select:hover { border-color: var(--color-accent); }
+        input:active, textarea:active, select:active { background: var(--color-paper-3); }
+        input[data-state="loading"], textarea[data-state="loading"], select[data-state="loading"] { cursor: wait; }
+        input[aria-invalid="true"], textarea[aria-invalid="true"], select[aria-invalid="true"] {
           border-color: var(--color-error);
         }
-        input[data-state="success"], select[data-state="success"] {
+        input[data-state="success"], textarea[data-state="success"], select[data-state="success"] {
           border-color: var(--color-success);
         }
-        input::placeholder { color: var(--color-muted); }
+        input::placeholder, textarea::placeholder { color: var(--color-muted); }
         button[data-role="search"] { width: 100%; font-weight: 700; }
         [data-role="settings"] {
           margin-bottom: var(--space-sm);
@@ -341,7 +353,7 @@
           [data-role="result"] div div { grid-template-columns: 1fr; gap: 0; }
         }
         @media (prefers-reduced-motion: reduce) {
-          button, input, select { transition-duration: 0ms; }
+          button, input, textarea, select { transition-duration: 0ms; }
           button:active { transform: none; }
         }
       </style>
@@ -376,6 +388,9 @@
                 type="text"
                 autocomplete="off"
                 spellcheck="false"
+                readonly
+                aria-haspopup="dialog"
+                title="Выбрать папку"
                 placeholder="Полный путь к папке"
               >
               <label for="bluedot-agent-browser">Браузер</label>
@@ -399,14 +414,14 @@
           </section>
           <form data-role="search-form">
             <label for="bluedot-agent-query">Запрос</label>
-            <input
+            <textarea
               id="bluedot-agent-query"
               data-role="query"
-              type="text"
+              rows="1"
               maxlength="1000"
               autocomplete="off"
               placeholder="Например: спокойные струнные…"
-            >
+            ></textarea>
             <button data-role="search" type="submit">Найти</button>
           </form>
           <p data-role="status" data-kind="idle" role="status" aria-live="polite">Введите запрос и нажмите Enter.</p>
@@ -548,6 +563,37 @@
       search.dataset.state = kind;
       search.textContent = kind === "loading" ? "Ищу…" : "Найти";
     };
+    const resizeQueryToContent = ({ shrink = false } = {}) => {
+      if (host.hasAttribute("data-collapsed") || !query.getClientRects().length) return;
+      const queryRect = query.getBoundingClientRect();
+      const currentHeight = queryRect.height || 44;
+      const searchHeight = search.getBoundingClientRect().height || 44;
+      const formGap = Number.parseFloat(getComputedStyle(form).rowGap) || 0;
+      const maxHeight = Math.max(
+        44,
+        Math.floor(window.innerHeight - queryRect.top - searchHeight - formGap - 8)
+      );
+      query.style.maxHeight = `${maxHeight}px`;
+      query.style.height = "auto";
+      const contentHeight = Math.min(query.scrollHeight, maxHeight);
+      query.style.height = `${Math.min(
+        maxHeight,
+        shrink ? contentHeight : Math.max(currentHeight, contentHeight)
+      )}px`;
+    };
+    let queryResizeScheduled = false;
+    let shrinkNextQueryResize = false;
+    const scheduleQueryResize = ({ shrink = false } = {}) => {
+      shrinkNextQueryResize ||= shrink;
+      if (queryResizeScheduled) return;
+      queryResizeScheduled = true;
+      requestAnimationFrame(() => {
+        const shouldShrink = shrinkNextQueryResize;
+        queryResizeScheduled = false;
+        shrinkNextQueryResize = false;
+        resizeQueryToContent({ shrink: shouldShrink });
+      });
+    };
     const setLoading = (loading) => {
       form.setAttribute("aria-busy", String(loading));
       query.disabled = loading;
@@ -656,6 +702,8 @@
         if (panelState.result && panelState.result.ok) showResult(panelState.result);
       } catch (error) {
         setStatus(settingsLoadFailure, "error");
+      } finally {
+        scheduleQueryResize();
       }
     };
     const showResult = (result) => {
@@ -793,6 +841,7 @@
       panelState.collapsed = !host.hasAttribute("data-collapsed");
       setCollapsed(panelState.collapsed);
       saveState();
+      scheduleQueryResize();
     });
     buildHelp();
     helpToggle.addEventListener("click", () => setHelpOpen(helpOverlay.hidden));
@@ -835,6 +884,7 @@
       settingsSection.hidden = !settingsSection.hidden;
       settingsToggle.setAttribute("aria-expanded", String(!settingsSection.hidden));
       resetClearApiKey();
+      scheduleQueryResize();
     });
     providerSelect.addEventListener("change", () => {
       resetClearApiKey();
@@ -846,6 +896,36 @@
         ? "Ключ сохранён или задан через переменную окружения."
         : "Ключ не сохранён.";
       clearApiKey.disabled = !selected.has_api_key;
+    });
+    const chooseDownloadDirectory = async () => {
+      if (downloadDirectory.dataset.state === "loading") return;
+      downloadDirectory.dataset.state = "loading";
+      try {
+        const response = await window.__bluedotPanelCommand({
+          type: "choose_download_directory",
+          download_directory: downloadDirectory.value
+        });
+        if (!response || !response.ok) {
+          downloadDirectory.dataset.state = "error";
+          setStatus((response && response.error) || "Не удалось выбрать папку.", "error");
+          return;
+        }
+        downloadDirectory.dataset.state = "idle";
+        if (typeof response.download_directory === "string") {
+          downloadDirectory.value = response.download_directory;
+          downloadDirectory.dataset.state = "success";
+          setStatus("Папка выбрана. Нажмите «Применить», чтобы сохранить её.", "idle");
+        }
+      } catch (error) {
+        downloadDirectory.dataset.state = "error";
+        setStatus("Не удалось выбрать папку.", "error");
+      }
+    };
+    downloadDirectory.addEventListener("click", chooseDownloadDirectory);
+    downloadDirectory.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      chooseDownloadDirectory();
     });
     settingsForm.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -953,6 +1033,12 @@
       query.removeAttribute("aria-invalid");
       query.dataset.state = "idle";
       if (form.getAttribute("aria-busy") !== "true") setSearchState("idle");
+      scheduleQueryResize();
+    });
+    query.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+      event.preventDefault();
+      form.requestSubmit();
     });
     window.addEventListener("popstate", async () => {
       const index = currentHistoryEntry();
@@ -976,6 +1062,7 @@
           if (typeof response.result.prompt === "string") {
             query.value = response.result.prompt;
             panelState.query = response.result.prompt;
+            scheduleQueryResize({ shrink: true });
           }
           setSearchState("success");
           setStatus("Показан прошлый запрос.", "success");
@@ -997,9 +1084,13 @@
     if (panelState.result && panelState.result.ok) showResult(panelState.result);
     markHistoryBaseline();
     setCollapsed(Boolean(panelState.collapsed));
+    scheduleQueryResize({ shrink: true });
     window.addEventListener(
       "resize",
-      () => setCollapsed(Boolean(panelState.collapsed)),
+      () => {
+        setCollapsed(Boolean(panelState.collapsed));
+        scheduleQueryResize();
+      },
       { passive: true }
     );
     loadSettings();

@@ -52,6 +52,7 @@ class PanelHandler:
         search: Callable[[BlueDotIntent], Awaitable[dict[str, Any]]],
         settings: ProviderSettingsStore | None = None,
         api_key_prompt: Callable[[str], Awaitable[str | None]] = prompt_for_api_key,
+        directory_picker: Callable[[Path], Awaitable[Path | None]] | None = None,
         download_directory_changed: Callable[[Path], None] | None = None,
         open_download: Callable[[], bool] | None = None,
         restore: Callable[[PanelFilterSnapshot], Awaitable[dict[str, Any]]] | None = None,
@@ -60,6 +61,7 @@ class PanelHandler:
         self._search = search
         self._settings = settings
         self._api_key_prompt = api_key_prompt
+        self._directory_picker = directory_picker
         self._download_directory_changed = download_directory_changed
         self._open_download = open_download
         self._restore = restore
@@ -86,6 +88,8 @@ class PanelHandler:
             return self._save_settings(command)
         if command_type == "set_api_key":
             return await self._set_api_key(command)
+        if command_type == "choose_download_directory":
+            return await self._choose_download_directory(command)
         if command_type == "open_download":
             try:
                 opened = self._open_download is not None and self._open_download()
@@ -240,6 +244,27 @@ class PanelHandler:
             return {"ok": True, "settings": settings}
         except (ProviderConfigurationError, OSError, UnicodeError):
             return _error("Не удалось сохранить API-ключ.")
+        finally:
+            self._settings_busy = False
+
+    async def _choose_download_directory(
+        self, command: dict[str, Any]
+    ) -> dict[str, Any]:
+        raw_directory = command.get("download_directory")
+        if not isinstance(raw_directory, str) or not raw_directory.strip():
+            return _error("Не удалось определить текущую папку для скачивания.")
+        if self._directory_picker is None:
+            return _error("Системный выбор папки недоступен.")
+        if self._settings_busy:
+            return _error("Другое окно настроек уже открыто.")
+        self._settings_busy = True
+        try:
+            selected = await self._directory_picker(Path(raw_directory.strip()))
+            if selected is None:
+                return {"ok": True, "cancelled": True}
+            return {"ok": True, "download_directory": str(selected)}
+        except (OSError, RuntimeError, UnicodeError):
+            return _error("Не удалось открыть системный выбор папки.")
         finally:
             self._settings_busy = False
 
