@@ -576,6 +576,11 @@ class PanelBrowserTest(unittest.IsolatedAsyncioTestCase):
             return {"ok": False, "error": "unused"}
 
         page = await self.browser.new_page(viewport={"width": 420, "height": 360})
+        await page.add_init_script(
+            """const nativeRequestAnimationFrame = window.requestAnimationFrame.bind(window);
+            window.requestAnimationFrame = callback =>
+              setTimeout(() => nativeRequestAnimationFrame(callback), 100);"""
+        )
         await install_panel(page, handler)
         await page.route(
             "https://app.sessions.blue/**",
@@ -591,6 +596,14 @@ class PanelBrowserTest(unittest.IsolatedAsyncioTestCase):
         query = host.locator("[data-role=query]")
         initial_height = (await query.bounding_box())["height"]
         await query.fill("длинный музыкальный запрос " * 80)
+        await page.wait_for_function(
+            """initialHeight => {
+              const host = document.getElementById("bluedot-agent-panel");
+              const field = host?.shadowRoot?.querySelector("[data-role=query]");
+              return field && field.getBoundingClientRect().height > initialHeight;
+            }""",
+            arg=initial_height,
+        )
         metrics = await query.evaluate(
             """field => {
               const style = getComputedStyle(field);
