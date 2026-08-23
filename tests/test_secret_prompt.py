@@ -80,8 +80,9 @@ class PromptThreadingTest(unittest.IsolatedAsyncioTestCase):
         calling_thread = threading.get_ident()
         dialog_threads = []
 
-        def fake_dialog(provider_label):
+        def fake_dialog(provider_label, language):
             dialog_threads.append(threading.get_ident())
+            self.assertEqual(language, "ru")
             return "secret"
 
         with patch.object(

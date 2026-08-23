@@ -58,6 +58,7 @@ _RETIRED_PROVIDER_IDS = {"cerebras"}
 _RETIRED_MODELS = {
     ("openrouter", "openai/gpt-oss-120b:free"): "openai/gpt-oss-20b:free",
 }
+LANGUAGES = frozenset({"ru", "en"})
 
 
 @dataclass(frozen=True)
@@ -359,6 +360,7 @@ class ProviderSettingsStore:
             }
         return {
             "browser": settings["browser"],
+            "language": settings["language"],
             "selected_provider": selected_provider,
             "providers": providers,
             "download_directory": str(self.download_directory()),
@@ -373,6 +375,9 @@ class ProviderSettingsStore:
     def browser(self) -> BrowserKind:
         return self._load()["browser"]
 
+    def language(self) -> str:
+        return self._load()["language"]
+
     def save_browser(self, browser: str) -> BrowserKind:
         normalized = browser.strip().casefold()
         if normalized not in BROWSER_KINDS:
@@ -381,6 +386,15 @@ class ProviderSettingsStore:
         settings["browser"] = normalized
         self._write(settings)
         return normalized
+
+    def save_language(self, language: str) -> dict[str, Any]:
+        normalized = language.strip().casefold()
+        if normalized not in LANGUAGES:
+            raise ProviderConfigurationError("Неизвестный язык интерфейса.")
+        settings = self._load()
+        settings["language"] = normalized
+        self._write(settings)
+        return self.public_state()
 
     def download_directory(self) -> Path:
         environment_value = self._environ.get("BLUEDOT_DOWNLOAD_DIR", "").strip()
@@ -475,6 +489,7 @@ class ProviderSettingsStore:
         default = {
             "version": 2,
             "browser": "firefox",
+            "language": "ru",
             "selected_provider": "gemini",
             "providers": {},
         }
@@ -498,13 +513,20 @@ class ProviderSettingsStore:
             )
         version = loaded.get("version", 1)
         browser = loaded.get("browser", "firefox")
-        if version not in (1, 2) or browser not in BROWSER_KINDS:
+        language = loaded.get("language", "ru")
+        if (
+            version not in (1, 2)
+            or browser not in BROWSER_KINDS
+            or language not in LANGUAGES
+        ):
             raise ProviderConfigurationError(
                 "Файл настроек помощника повреждён."
             )
-        needs_migration = version != 2 or selected in _RETIRED_PROVIDER_IDS or any(
-            provider_id in _RETIRED_PROVIDER_IDS
-            for provider_id in providers
+        needs_migration = (
+            version != 2
+            or "language" not in loaded
+            or selected in _RETIRED_PROVIDER_IDS
+            or any(provider_id in _RETIRED_PROVIDER_IDS for provider_id in providers)
         )
         if selected in _RETIRED_PROVIDER_IDS:
             selected = "gemini"
@@ -537,6 +559,7 @@ class ProviderSettingsStore:
         normalized = {
             "version": 2,
             "browser": browser,
+            "language": language,
             "selected_provider": selected,
             "providers": normalized_providers,
         }

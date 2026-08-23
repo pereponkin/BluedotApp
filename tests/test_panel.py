@@ -1,4 +1,5 @@
 import asyncio
+import threading
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -48,11 +49,46 @@ class PanelScriptTest(unittest.TestCase):
 
 
 class PanelHandlerTest(unittest.IsolatedAsyncioTestCase):
+    async def test_search_maps_prompt_outside_event_loop(self):
+        intent = BlueDotIntent(
+            prompt="calm",
+            preset_name="rule_based",
+            sliders={},
+        )
+
+        class ThreadRecordingMapper(FakeMapper):
+            thread_id = None
+
+            def map_prompt(self, prompt, preset_name="auto"):
+                self.thread_id = threading.get_ident()
+                return super().map_prompt(prompt, preset_name)
+
+        async def search(mapped_intent):
+            return {
+                "applied_sliders": {},
+                "missing_sliders": {},
+                "exact_count": 0,
+                "has_related": False,
+            }
+
+        event_loop_thread = threading.get_ident()
+        mapper = ThreadRecordingMapper(intent)
+        handler = PanelHandler(mapper, search)
+
+        result = await handler(
+            {"frame": Frame()},
+            {"type": "search", "prompt": "calm"},
+        )
+
+        self.assertTrue(result["ok"])
+        self.assertNotEqual(mapper.thread_id, event_loop_thread)
+
     async def test_choose_download_directory_uses_native_picker(self):
         opened_at = []
 
-        async def choose_directory(initial_directory):
+        async def choose_directory(initial_directory, language):
             opened_at.append(initial_directory)
+            self.assertEqual(language, "ru")
             return Path(r"E:\Music\Blue Dot")
 
         handler = PanelHandler(
@@ -412,6 +448,20 @@ class PanelHandlerTest(unittest.IsolatedAsyncioTestCase):
             saved["settings"]["providers"]["gemini"],
         )
 
+    async def test_language_command_saves_and_returns_public_settings(self):
+        class Store:
+            def save_language(self, language):
+                return {"language": language}
+
+        handler = PanelHandler(FakeMapper(None), lambda intent: None, Store())
+
+        result = await handler(
+            {"frame": Frame()},
+            {"type": "set_language", "language": "en"},
+        )
+
+        self.assertEqual(result, {"ok": True, "settings": {"language": "en"}})
+
     async def test_api_key_is_collected_outside_browser_command(self):
         class Store:
             saved = None
@@ -433,8 +483,9 @@ class PanelHandlerTest(unittest.IsolatedAsyncioTestCase):
 
         prompted_for = []
 
-        async def prompt(provider_label):
+        async def prompt(provider_label, language):
             prompted_for.append(provider_label)
+            self.assertEqual(language, "ru")
             return "desktop-secret"
 
         store = Store()

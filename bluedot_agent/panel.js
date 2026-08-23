@@ -72,6 +72,29 @@
           border-bottom: 1px solid var(--color-rule);
         }
         header div { display: flex; align-items: center; gap: var(--space-2xs); }
+        .language-control { position: relative; display: block; }
+        [data-role="language-menu"] {
+          position: absolute;
+          inset: calc(100% + var(--space-3xs)) 0 auto auto;
+          z-index: 2;
+          display: grid;
+          gap: var(--space-3xs);
+          min-width: 76px;
+          padding: var(--space-3xs);
+          background: var(--color-paper);
+          border: 1px solid var(--color-rule-strong);
+          box-shadow: 0 12px 28px oklch(8% 0.02 260 / .45);
+        }
+        [data-role="language-menu"] button {
+          min-width: 0;
+          min-height: 34px;
+          padding-inline: var(--space-2xs);
+        }
+        [data-role="language-menu"] button[aria-checked="true"] {
+          color: var(--color-ink);
+          border-color: var(--color-accent);
+          background: var(--color-paper-3);
+        }
         h1 {
           margin: 0;
           min-width: 0;
@@ -345,6 +368,7 @@
         :host([data-overlay]) { box-shadow: 1px 0 0 var(--color-rule); }
         :host([data-collapsed]) h1,
         :host([data-collapsed]) [data-role="help-toggle"],
+        :host([data-collapsed]) .language-control,
         :host([data-collapsed]) [data-role="settings-toggle"],
         :host([data-collapsed]) .content { display: none; }
         :host([data-collapsed]) header { justify-content: center; padding-inline: 0; }
@@ -368,6 +392,19 @@
               aria-haspopup="dialog"
               aria-expanded="false"
             >?</button>
+            <span class="language-control">
+              <button
+                data-role="language-toggle"
+                type="button"
+                aria-label="Язык интерфейса"
+                aria-haspopup="menu"
+                aria-expanded="false"
+              >🌐</button>
+              <span data-role="language-menu" role="menu" aria-label="Язык интерфейса" hidden>
+                <button type="button" role="menuitemradio" data-language="ru" aria-checked="true">RU</button>
+                <button type="button" role="menuitemradio" data-language="en" aria-checked="false">EN</button>
+              </span>
+            </span>
             <button
               data-role="settings-toggle"
               type="button"
@@ -469,6 +506,9 @@
     const panelBody = shadow.querySelector("aside");
     const toggle = shadow.querySelector("[data-role=toggle]");
     const helpToggle = shadow.querySelector("[data-role=help-toggle]");
+    const languageToggle = shadow.querySelector("[data-role=language-toggle]");
+    const languageMenu = shadow.querySelector("[data-role=language-menu]");
+    const languageOptions = [...languageMenu.querySelectorAll("[data-language]")];
     const settingsToggle = shadow.querySelector("[data-role=settings-toggle]");
     const settingsSection = shadow.querySelector("[data-role=settings]");
     const settingsForm = shadow.querySelector("[data-role=settings-form]");
@@ -495,8 +535,141 @@
     const helpClose = shadow.querySelector("[data-role=help-close]");
     const helpTabs = shadow.querySelector("[data-role=help-tabs]");
     const helpBody = shadow.querySelector("[data-role=help-body]");
-    const helpContent = __BLUEDOT_HELP_CONTENT__;
+    const helpDocuments = __BLUEDOT_HELP_CONTENT__;
     const helpPanels = [];
+    const translations = {
+      ru: {
+        help_label: "Справка о Blue Dot Agent",
+        language_label: "Язык интерфейса",
+        settings_label: "Настройки",
+        collapse: "Свернуть панель",
+        expand: "Развернуть панель",
+        download_folder: "Папка для скачивания:",
+        choose_folder: "Выбрать папку",
+        path_placeholder: "Полный путь к папке",
+        browser: "Браузер",
+        browser_note: "Изменение действует после следующего запуска.",
+        ai_settings: "Настройки ИИ",
+        service: "Сервис",
+        model: "Модель",
+        key_saved: "Ключ сохранён или задан через переменную окружения.",
+        key_missing: "Ключ не сохранён.",
+        apply: "Применить",
+        set_key: "Ввести / заменить API-ключ",
+        delete_key: "Удалить ключ",
+        delete_confirm: "Нажмите ещё раз для удаления",
+        query: "Запрос",
+        query_placeholder: "Например: спокойные струнные…",
+        search: "Найти",
+        searching: "Ищу…",
+        initial_status: "Введите запрос и нажмите Enter.",
+        scales: "Шкалы",
+        categories: "Категории",
+        missing: "Не применились",
+        close_help: "Закрыть справку",
+        help_sections: "Разделы справки",
+        local_rules: "Локальные правила",
+        last_interpretation: "Последняя интерпретация: {parser}",
+        exact_matches: "Точных совпадений: {count}",
+        no_exact_related: "Точных совпадений нет; ниже похожие треки.",
+        related: "Ниже также доступны похожие треки.",
+        no_exact: "Точных совпадений нет.",
+        no_related: "Похожих треков нет.",
+        settings_load_failure: "Не удалось загрузить настройки. Закройте браузер агента и запустите его заново.",
+        search_failure: "Не удалось выполнить поиск. Проверьте ИИ-сервис и ключ под шестерёнкой.",
+        restore_failure: "Не удалось вернуть прошлый запрос. Повторите его в поле выше.",
+        open_download: "Открыть скачанный файл",
+        open_failure: "Не удалось открыть файл.",
+        choose_provider: "Выберите ИИ-сервис и укажите API-ключ.",
+        folder_failure: "Не удалось выбрать папку.",
+        folder_selected: "Папка выбрана. Нажмите «Применить», чтобы сохранить её.",
+        settings_failure: "Не удалось сохранить настройки.",
+        settings_saved: "Настройки применены. Браузер изменится при следующем запуске.",
+        settings_need_key: "Настройки применены. Для поиска ещё нужен API-ключ.",
+        key_prompt: "Введите ключ в отдельном окне Blue Dot Agent.",
+        key_failure: "Не удалось сохранить API-ключ.",
+        key_protected: "API-ключ защищён и сохранён.",
+        key_delete_warning: "Ключ будет удалён вторым нажатием. Отменить можно любым другим действием.",
+        key_delete_failure: "Не удалось удалить API-ключ.",
+        key_deleted: "Сохранённый API-ключ удалён.",
+        prompt_required: "Введите текстовый запрос.",
+        ready: "Готово.",
+        restoring_baseline: "Возвращаю исходные фильтры…",
+        restoring_history: "Возвращаю прошлый запрос…",
+        history_shown: "Показан прошлый запрос.",
+        filters_reset: "Фильтры сброшены к исходным.",
+        language_failure: "Не удалось сохранить язык интерфейса.",
+        generic_error: "Не удалось выполнить операцию."
+      },
+      en: {
+        help_label: "Blue Dot Agent help",
+        language_label: "Interface language",
+        settings_label: "Settings",
+        collapse: "Collapse panel",
+        expand: "Expand panel",
+        download_folder: "Download folder:",
+        choose_folder: "Choose folder",
+        path_placeholder: "Full folder path",
+        browser: "Browser",
+        browser_note: "The change takes effect after the next launch.",
+        ai_settings: "AI settings",
+        service: "Service",
+        model: "Model",
+        key_saved: "The key is saved or supplied through an environment variable.",
+        key_missing: "No key is saved.",
+        apply: "Apply",
+        set_key: "Enter / replace API key",
+        delete_key: "Delete key",
+        delete_confirm: "Select again to delete",
+        query: "Request",
+        query_placeholder: "For example: calm sparse strings…",
+        search: "Search",
+        searching: "Searching…",
+        initial_status: "Enter a request and press Enter.",
+        scales: "Scales",
+        categories: "Categories",
+        missing: "Not applied",
+        close_help: "Close help",
+        help_sections: "Help sections",
+        local_rules: "Local rules",
+        last_interpretation: "Last interpretation: {parser}",
+        exact_matches: "Exact matches: {count}",
+        no_exact_related: "No exact matches; related tracks are shown below.",
+        related: "Related tracks are also available below.",
+        no_exact: "No exact matches.",
+        no_related: "No related tracks.",
+        settings_load_failure: "Could not load settings. Close the agent browser and start it again.",
+        search_failure: "Could not run the search. Check the AI service and key under the gear.",
+        restore_failure: "Could not restore the earlier request. Repeat it in the field above.",
+        open_download: "Open downloaded file",
+        open_failure: "Could not open the file.",
+        choose_provider: "Choose an AI service and enter an API key.",
+        folder_failure: "Could not choose a folder.",
+        folder_selected: "Folder selected. Select Apply to save it.",
+        settings_failure: "Could not save settings.",
+        settings_saved: "Settings applied. The browser will change after the next launch.",
+        settings_need_key: "Settings applied. An API key is still required for search.",
+        key_prompt: "Enter the key in the separate Blue Dot Agent window.",
+        key_failure: "Could not save the API key.",
+        key_protected: "The API key is protected and saved.",
+        key_delete_warning: "The key will be deleted on the second selection. Any other action cancels this.",
+        key_delete_failure: "Could not delete the API key.",
+        key_deleted: "The saved API key was deleted.",
+        prompt_required: "Enter a text request.",
+        ready: "Done.",
+        restoring_baseline: "Restoring the original filters…",
+        restoring_history: "Restoring the earlier request…",
+        history_shown: "The earlier request is shown.",
+        filters_reset: "Filters were reset to their original state.",
+        language_failure: "Could not save the interface language.",
+        generic_error: "The operation could not be completed."
+      }
+    };
+    let language = "ru";
+    const t = (key, values = {}) => Object.entries(values).reduce(
+      (text, [name, value]) => text.replaceAll(`{${name}}`, String(value)),
+      translations[language][key] || translations.ru[key] || key
+    );
     const pageRoot = document.getElementById("root") || document.body;
     const storagePrefix = "__bluedotAgentPanelState:";
     const storageKey = `${storagePrefix}${runId}`;
@@ -561,7 +734,7 @@
     };
     const setSearchState = (kind) => {
       search.dataset.state = kind;
-      search.textContent = kind === "loading" ? "Ищу…" : "Найти";
+      search.textContent = kind === "loading" ? t("searching") : t("search");
     };
     const resizeQueryToContent = ({ shrink = false } = {}) => {
       if (host.hasAttribute("data-collapsed") || !query.getClientRects().length) return;
@@ -607,42 +780,78 @@
         query.dataset.state = "idle";
       }
     };
+    let statusState = { key: "initial_status", values: {}, text: "", kind: "idle" };
+    const localizedBackendText = (text) => {
+      if (language === "ru" || !/[А-Яа-яЁё]/.test(text)) return text;
+      const exact = {
+        "Не удалось открыть скачанный файл.": "Could not open the downloaded file.",
+        "Скачанный файл больше недоступен.": "The downloaded file is no longer available.",
+        "API-ключ не может быть пустым.": "The API key cannot be empty.",
+        "Ввод API-ключа отменён.": "API key entry was cancelled.",
+        "Поиск уже выполняется.": "A search is already running."
+      };
+      if (exact[text]) return exact[text];
+      let match = text.match(/^Скачивание началось: (.+)$/);
+      if (match) return `Download started: ${match[1]}`;
+      match = text.match(/^Скачано: (.+)$/);
+      if (match) return `Downloaded: ${match[1]}`;
+      match = text.match(/^Не удалось скачать (.+)$/);
+      if (match) return `Could not download ${match[1]}`;
+      match = text.match(/^(.+) не смог интерпретировать запрос\./);
+      if (match) return `${match[1]} could not interpret the request. Check the API key, model, and connection.`;
+      return t("generic_error");
+    };
+    const renderStatus = () => {
+      status.textContent = statusState.key
+        ? t(statusState.key, statusState.values)
+        : localizedBackendText(statusState.text);
+      status.dataset.kind = statusState.kind;
+    };
     const setStatus = (text, kind) => {
-      status.textContent = text;
+      statusState = { key: null, values: {}, text, kind };
+      renderStatus();
       status.dataset.kind = kind;
       status.removeAttribute("data-can-open");
       status.tabIndex = -1;
       status.title = "";
     };
+    const setLocalizedStatus = (key, kind, values = {}) => {
+      statusState = { key, values, text: "", kind };
+      renderStatus();
+      status.removeAttribute("data-can-open");
+      status.tabIndex = -1;
+      status.title = "";
+    };
+    const setResponseError = (response, fallbackKey) => {
+      if (response && response.error) setStatus(response.error, "error");
+      else setLocalizedStatus(fallbackKey, "error");
+    };
     const armClearApiKey = () => {
       clearApiKey.dataset.state = "confirm";
-      clearApiKey.textContent = "Нажмите ещё раз для удаления";
-      setStatus("Ключ будет удалён вторым нажатием. Отменить можно любым другим действием.", "idle");
+      clearApiKey.textContent = t("delete_confirm");
+      setLocalizedStatus("key_delete_warning", "idle");
     };
     const resetClearApiKey = () => {
       if (clearApiKey.dataset.state === "confirm") clearApiKey.dataset.state = "idle";
-      clearApiKey.textContent = "Удалить ключ";
+      clearApiKey.textContent = t("delete_key");
     };
-    const settingsLoadFailure = "Не удалось загрузить настройки. Закройте браузер агента и запустите его заново.";
-    const searchFailure = "Не удалось выполнить поиск. Проверьте ИИ-сервис и ключ под шестерёнкой.";
-    const restoreFailure = "Не удалось вернуть прошлый запрос. Повторите его в поле выше.";
     window.addEventListener("bluedot-agent-download-status", (event) => {
       const detail = event.detail || {};
       if (typeof detail.text !== "string" || !detail.text) return;
       setStatus(detail.text, detail.kind || "idle");
       status.toggleAttribute("data-can-open", detail.can_open === true);
       status.tabIndex = detail.can_open === true ? 0 : -1;
-      status.title = detail.can_open === true ? "Открыть скачанный файл" : "";
+      status.title = detail.can_open === true ? t("open_download") : "";
     });
     const openDownloadedFile = async () => {
       if (!status.hasAttribute("data-can-open")) return;
       try {
         const response = await window.__bluedotPanelCommand({ type: "open_download" });
         if (!response || !response.ok) {
-          setStatus((response && response.error) || "Не удалось открыть файл.", "error");
+          setResponseError(response, "open_failure");
         }
       } catch (error) {
-        setStatus("Не удалось открыть файл.", "error");
+        setLocalizedStatus("open_failure", "error");
       }
     };
     status.addEventListener("click", openDownloadedFile);
@@ -665,6 +874,13 @@
       }
       modelSelect.value = provider ? provider.model : "";
     };
+    const renderKeyState = () => {
+      const selected = settingsState && settingsState.providers[settingsState.selected_provider];
+      keyState.textContent = selected && selected.has_api_key
+        ? t("key_saved")
+        : t("key_missing");
+      clearApiKey.disabled = !(selected && selected.has_api_key);
+    };
     const renderSettings = (settings) => {
       settingsState = settings;
       providerSelect.replaceChildren();
@@ -679,29 +895,28 @@
       downloadDirectory.value = settings.download_directory || "";
       const selected = settings.providers[settings.selected_provider];
       renderModels(selected);
-      keyState.textContent = selected && selected.has_api_key
-        ? "Ключ сохранён или задан через переменную окружения."
-        : "Ключ не сохранён.";
-      clearApiKey.disabled = !(selected && selected.has_api_key);
+      renderKeyState();
       resetClearApiKey();
     };
     const loadSettings = async () => {
       try {
         const response = await window.__bluedotPanelCommand({ type: "get_settings" });
         if (!response || !response.ok) {
-          setStatus((response && response.error) || settingsLoadFailure, "error");
+          setResponseError(response, "settings_load_failure");
           return;
         }
+        language = response.settings.language === "en" ? "en" : "ru";
         renderSettings(response.settings);
+        applyLanguage();
         const selected = response.settings.providers[response.settings.selected_provider];
         if (!selected || !selected.has_api_key) {
           settingsSection.hidden = false;
           settingsToggle.setAttribute("aria-expanded", "true");
-          setStatus("Выберите ИИ-сервис и укажите API-ключ.", "idle");
+          setLocalizedStatus("choose_provider", "idle");
         }
         if (panelState.result && panelState.result.ok) showResult(panelState.result);
       } catch (error) {
-        setStatus(settingsLoadFailure, "error");
+        setLocalizedStatus("settings_load_failure", "error");
       } finally {
         scheduleQueryResize();
       }
@@ -712,24 +927,24 @@
         ? configuredProvider.label
         : result.parser === "gemini"
           ? "Gemini"
-          : result.parser === "rule_based" ? "Локальные правила" : result.parser;
-      interpretation.textContent = `Последняя интерпретация: ${parser}`;
-      warning.textContent = result.warning || "";
+          : result.parser === "rule_based" ? t("local_rules") : result.parser;
+      interpretation.textContent = t("last_interpretation", { parser });
+      warning.textContent = result.warning ? localizedBackendText(result.warning) : "";
       warning.hidden = !result.warning;
       renderSection(sliders, result.applied_sliders, formatRange);
       renderSection(categories, result.categories, formatValues);
       renderSection(missing, result.missing_sliders, formatRange);
       shadow.querySelector("[data-role=exact]").textContent =
-        `Точных совпадений: ${result.exact_count}`;
+        t("exact_matches", { count: result.exact_count });
       const related = shadow.querySelector("[data-role=related]");
       if (result.exact_count === 0 && result.has_related) {
-        related.textContent = "Точных совпадений нет; ниже похожие треки.";
+        related.textContent = t("no_exact_related");
       } else if (result.has_related) {
-        related.textContent = "Ниже также доступны похожие треки.";
+        related.textContent = t("related");
       } else {
         related.textContent = result.exact_count === 0
-          ? "Точных совпадений нет."
-          : "Похожих треков нет.";
+          ? t("no_exact")
+          : t("no_related");
       }
       resultSection.hidden = false;
     };
@@ -759,7 +974,7 @@
         pageRoot.style.transform = "translateZ(0)";
       }
       toggle.setAttribute("aria-expanded", String(!collapsed));
-      toggle.setAttribute("aria-label", collapsed ? "Развернуть панель" : "Свернуть панель");
+      toggle.setAttribute("aria-label", collapsed ? t("expand") : t("collapse"));
       toggle.textContent = collapsed ? "›" : "‹";
     };
     const selectHelpTab = (index) => {
@@ -792,6 +1007,10 @@
       return node;
     };
     const buildHelp = () => {
+      helpPanels.length = 0;
+      helpTabs.replaceChildren();
+      helpBody.replaceChildren();
+      const helpContent = helpDocuments[language] || helpDocuments.ru;
       shadow.querySelector("[data-role=help-title]").textContent = helpContent.title || "";
       shadow.querySelector("[data-role=help-subtitle]").textContent = helpContent.subtitle || "";
       (helpContent.tabs || []).forEach((tab, index) => {
@@ -819,6 +1038,48 @@
       });
       selectHelpTab(0);
     };
+    const setLanguageMenuOpen = (open) => {
+      languageMenu.hidden = !open;
+      languageToggle.setAttribute("aria-expanded", String(open));
+      if (open) languageOptions.find((option) => option.dataset.language === language)?.focus();
+    };
+    const applyLanguage = () => {
+      host.setAttribute("lang", language);
+      helpToggle.setAttribute("aria-label", t("help_label"));
+      languageToggle.setAttribute("aria-label", t("language_label"));
+      languageMenu.setAttribute("aria-label", t("language_label"));
+      settingsToggle.setAttribute("aria-label", t("settings_label"));
+      helpClose.setAttribute("aria-label", t("close_help"));
+      helpTabs.setAttribute("aria-label", t("help_sections"));
+      shadow.querySelector('label[for="bluedot-agent-download-directory"]').textContent = t("download_folder");
+      downloadDirectory.title = t("choose_folder");
+      downloadDirectory.placeholder = t("path_placeholder");
+      shadow.querySelector('label[for="bluedot-agent-browser"]').textContent = t("browser");
+      shadow.querySelector("[data-role=browser-note]").textContent = t("browser_note");
+      shadow.querySelector("[data-role=settings-form] h2").textContent = t("ai_settings");
+      shadow.querySelector('label[for="bluedot-agent-provider"]').textContent = t("service");
+      shadow.querySelector('label[for="bluedot-agent-model"]').textContent = t("model");
+      saveSettings.textContent = t("apply");
+      setApiKey.textContent = t("set_key");
+      clearApiKey.textContent = clearApiKey.dataset.state === "confirm"
+        ? t("delete_confirm")
+        : t("delete_key");
+      shadow.querySelector('label[for="bluedot-agent-query"]').textContent = t("query");
+      query.placeholder = t("query_placeholder");
+      shadow.querySelector("[data-role=sliders-section] h2").textContent = t("scales");
+      shadow.querySelector("[data-role=categories-section] h2").textContent = t("categories");
+      shadow.querySelector("[data-role=missing-section] h2").textContent = t("missing");
+      languageOptions.forEach((option) => {
+        option.setAttribute("aria-checked", String(option.dataset.language === language));
+      });
+      setSearchState(search.dataset.state || "idle");
+      renderStatus();
+      if (status.hasAttribute("data-can-open")) status.title = t("open_download");
+      if (settingsState) renderKeyState();
+      if (panelState.result && panelState.result.ok) showResult(panelState.result);
+      setCollapsed(host.hasAttribute("data-collapsed"));
+      buildHelp();
+    };
     const helpFocusables = () =>
       [...helpDialog.querySelectorAll('button, a[href], [tabindex="0"]')].filter(
         (node) => !node.disabled && !node.closest("[hidden]")
@@ -838,12 +1099,51 @@
       }
     };
     toggle.addEventListener("click", () => {
+      setLanguageMenuOpen(false);
       panelState.collapsed = !host.hasAttribute("data-collapsed");
       setCollapsed(panelState.collapsed);
       saveState();
       scheduleQueryResize();
     });
-    buildHelp();
+    languageToggle.addEventListener("click", () => setLanguageMenuOpen(languageMenu.hidden));
+    languageMenu.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setLanguageMenuOpen(false);
+        languageToggle.focus();
+        return;
+      }
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      event.preventDefault();
+      const current = languageOptions.indexOf(shadow.activeElement);
+      const step = event.key === "ArrowDown" ? 1 : -1;
+      languageOptions[(current + step + languageOptions.length) % languageOptions.length].focus();
+    });
+    languageOptions.forEach((option) => option.addEventListener("click", async () => {
+      const nextLanguage = option.dataset.language;
+      setLanguageMenuOpen(false);
+      if (nextLanguage === language || !settingsState) return;
+      const response = await window.__bluedotPanelCommand({
+        type: "set_language",
+        language: nextLanguage
+      });
+      if (!response || !response.ok) {
+        setResponseError(response, "language_failure");
+        return;
+      }
+      language = response.settings.language === "en" ? "en" : "ru";
+      settingsState = response.settings;
+      applyLanguage();
+    }));
+    shadow.addEventListener("click", (event) => {
+      if (!event.composedPath().includes(languageToggle) && !event.composedPath().includes(languageMenu)) {
+        setLanguageMenuOpen(false);
+      }
+    });
+    document.addEventListener("click", (event) => {
+      if (!event.composedPath().includes(host)) setLanguageMenuOpen(false);
+    });
+    applyLanguage();
     helpToggle.addEventListener("click", () => setHelpOpen(helpOverlay.hidden));
     helpClose.addEventListener("click", () => setHelpOpen(false));
     helpOverlay.addEventListener("click", (event) => {
@@ -893,8 +1193,8 @@
       if (!selected) return;
       renderModels(selected);
       keyState.textContent = selected.has_api_key
-        ? "Ключ сохранён или задан через переменную окружения."
-        : "Ключ не сохранён.";
+        ? t("key_saved")
+        : t("key_missing");
       clearApiKey.disabled = !selected.has_api_key;
     });
     const chooseDownloadDirectory = async () => {
@@ -907,18 +1207,18 @@
         });
         if (!response || !response.ok) {
           downloadDirectory.dataset.state = "error";
-          setStatus((response && response.error) || "Не удалось выбрать папку.", "error");
+          setResponseError(response, "folder_failure");
           return;
         }
         downloadDirectory.dataset.state = "idle";
         if (typeof response.download_directory === "string") {
           downloadDirectory.value = response.download_directory;
           downloadDirectory.dataset.state = "success";
-          setStatus("Папка выбрана. Нажмите «Применить», чтобы сохранить её.", "idle");
+          setLocalizedStatus("folder_selected", "idle");
         }
       } catch (error) {
         downloadDirectory.dataset.state = "error";
-        setStatus("Не удалось выбрать папку.", "error");
+        setLocalizedStatus("folder_failure", "error");
       }
     };
     downloadDirectory.addEventListener("click", chooseDownloadDirectory);
@@ -940,22 +1240,20 @@
       });
       if (!response || !response.ok) {
         saveSettings.dataset.state = "error";
-        setStatus((response && response.error) || "Не удалось сохранить настройки.", "error");
+        setResponseError(response, "settings_failure");
         return;
       }
       saveSettings.dataset.state = "success";
       renderSettings(response.settings);
       const selected = response.settings.providers[response.settings.selected_provider];
-      setStatus(
-        selected && selected.has_api_key
-          ? "Настройки применены. Браузер изменится при следующем запуске."
-          : "Настройки применены. Для поиска ещё нужен API-ключ.",
+      setLocalizedStatus(
+        selected && selected.has_api_key ? "settings_saved" : "settings_need_key",
         selected && selected.has_api_key ? "success" : "idle"
       );
     });
     setApiKey.addEventListener("click", async () => {
       setApiKey.dataset.state = "loading";
-      setStatus("Введите ключ в отдельном окне Blue Dot Agent.", "idle");
+      setLocalizedStatus("key_prompt", "idle");
       const response = await window.__bluedotPanelCommand({
         type: "set_api_key",
         provider: providerSelect.value,
@@ -963,12 +1261,12 @@
       });
       if (!response || !response.ok) {
         setApiKey.dataset.state = "error";
-        setStatus((response && response.error) || "Не удалось сохранить API-ключ.", "error");
+        setResponseError(response, "key_failure");
         return;
       }
       setApiKey.dataset.state = "success";
       renderSettings(response.settings);
-      setStatus("API-ключ защищён и сохранён.", "success");
+      setLocalizedStatus("key_protected", "success");
     });
     clearApiKey.addEventListener("click", async () => {
       // Deleting a key cannot be undone, so the first click only arms the button.
@@ -986,12 +1284,12 @@
       });
       if (!response || !response.ok) {
         clearApiKey.dataset.state = "error";
-        setStatus((response && response.error) || "Не удалось удалить API-ключ.", "error");
+        setResponseError(response, "key_delete_failure");
         return;
       }
       clearApiKey.dataset.state = "success";
       renderSettings(response.settings);
-      setStatus("Сохранённый API-ключ удалён.", "success");
+      setLocalizedStatus("key_deleted", "success");
     });
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -1001,19 +1299,19 @@
         query.setAttribute("aria-invalid", "true");
         query.dataset.state = "error";
         setSearchState("error");
-        setStatus("Введите текстовый запрос.", "error");
+        setLocalizedStatus("prompt_required", "error");
         query.focus();
         return;
       }
       panelState.query = prompt;
       saveState();
       setLoading(true);
-      setStatus("Ищу…", "loading");
+      setLocalizedStatus("searching", "loading");
       try {
         const result = await window.__bluedotPanelCommand({ type: "search", prompt });
         if (!result || !result.ok) {
           setSearchState("error");
-          setStatus((result && result.error) || searchFailure, "error");
+          setResponseError(result, "search_failure");
           return;
         }
         showResult(result);
@@ -1021,10 +1319,10 @@
         saveState();
         if (typeof result.history_index === "number") pushHistoryEntry(result.history_index);
         setSearchState("success");
-        setStatus("Готово.", "success");
+        setLocalizedStatus("ready", "success");
       } catch (error) {
         setSearchState("error");
-        setStatus(searchFailure, "error");
+        setLocalizedStatus("search_failure", "error");
       } finally {
         setLoading(false);
       }
@@ -1045,15 +1343,15 @@
       if (index === null) return;
       if (form.getAttribute("aria-busy") === "true") return;
       setLoading(true);
-      setStatus(
-        index === baselineEntry ? "Возвращаю исходные фильтры…" : "Возвращаю прошлый запрос…",
+      setLocalizedStatus(
+        index === baselineEntry ? "restoring_baseline" : "restoring_history",
         "loading"
       );
       try {
         const response = await window.__bluedotPanelCommand({ type: "restore", index });
         if (!response || !response.ok) {
           setSearchState("error");
-          setStatus((response && response.error) || restoreFailure, "error");
+          setResponseError(response, "restore_failure");
           return;
         }
         if (response.result) {
@@ -1065,17 +1363,17 @@
             scheduleQueryResize({ shrink: true });
           }
           setSearchState("success");
-          setStatus("Показан прошлый запрос.", "success");
+          setLocalizedStatus("history_shown", "success");
         } else {
           resultSection.hidden = true;
           panelState.result = null;
           setSearchState("idle");
-          setStatus("Фильтры сброшены к исходным.", "idle");
+          setLocalizedStatus("filters_reset", "idle");
         }
         saveState();
       } catch (error) {
         setSearchState("error");
-        setStatus(restoreFailure, "error");
+        setLocalizedStatus("restore_failure", "error");
       } finally {
         setLoading(false);
       }

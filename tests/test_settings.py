@@ -99,9 +99,28 @@ class ProviderSettingsStoreTest(unittest.TestCase):
         public = self.store.public_state()
 
         self.assertEqual(public["browser"], "firefox")
+        self.assertEqual(public["language"], "ru")
         migrated = json.loads(self.path.read_text(encoding="utf-8"))
         self.assertEqual(migrated["version"], 2)
         self.assertEqual(migrated["browser"], "firefox")
+        self.assertEqual(migrated["language"], "ru")
+
+    def test_language_defaults_to_russian_and_persists(self):
+        self.assertEqual(self.store.public_state()["language"], "ru")
+
+        public = self.store.save_language("EN")
+
+        self.assertEqual(public["language"], "en")
+        self.assertEqual(
+            ProviderSettingsStore(
+                path=self.path,
+                protector=ReversingProtector(),
+                environ={},
+            ).public_state()["language"],
+            "en",
+        )
+        with self.assertRaisesRegex(ProviderConfigurationError, "язык"):
+            self.store.save_language("de")
 
     def test_browser_selection_is_validated_and_persisted(self):
         public = self.store.save(

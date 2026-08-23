@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import secrets
 from collections.abc import Awaitable, Callable
@@ -51,8 +52,8 @@ class PanelHandler:
         mapper: Any,
         search: Callable[[BlueDotIntent], Awaitable[dict[str, Any]]],
         settings: ProviderSettingsStore | None = None,
-        api_key_prompt: Callable[[str], Awaitable[str | None]] = prompt_for_api_key,
-        directory_picker: Callable[[Path], Awaitable[Path | None]] | None = None,
+        api_key_prompt: Callable[[str, str], Awaitable[str | None]] = prompt_for_api_key,
+        directory_picker: Callable[[Path, str], Awaitable[Path | None]] | None = None,
         download_directory_changed: Callable[[Path], None] | None = None,
         open_download: Callable[[], bool] | None = None,
         restore: Callable[[PanelFilterSnapshot], Awaitable[dict[str, Any]]] | None = None,
@@ -69,6 +70,12 @@ class PanelHandler:
         self._busy = False
         self._settings_busy = False
 
+    def _language(self) -> str:
+        if self._settings is None:
+            return "ru"
+        reader = getattr(self._settings, "language", None)
+        return reader() if callable(reader) else "ru"
+
     async def __call__(self, source: dict[str, Any], command: dict[str, Any]) -> dict[str, Any]:
         frame = source.get("frame") if isinstance(source, dict) else None
         frame_url = getattr(frame, "url", "")
@@ -82,6 +89,19 @@ class PanelHandler:
                 return _error("Настройки недоступны.")
             try:
                 return {"ok": True, "settings": self._settings.public_state()}
+            except ProviderConfigurationError as error:
+                return _error(str(error))
+        if command_type == "set_language":
+            if self._settings is None:
+                return _error("Настройки недоступны.")
+            language = command.get("language")
+            if not isinstance(language, str):
+                return _error("Язык интерфейса должен быть текстом.")
+            try:
+                return {
+                    "ok": True,
+                    "settings": self._settings.save_language(language),
+                }
             except ProviderConfigurationError as error:
                 return _error(str(error))
         if command_type == "save_settings":
@@ -114,7 +134,11 @@ class PanelHandler:
             return _error("Поиск уже выполняется.")
         self._busy = True
         try:
-            intent = self._mapper.map_prompt(prompt, preset_name="auto")
+            intent = await asyncio.to_thread(
+                self._mapper.map_prompt,
+                prompt,
+                preset_name="auto",
+            )
             state = await self._search(intent)
             result = {
                 "ok": True,
@@ -233,7 +257,7 @@ class PanelHandler:
             return _error("Окно API-ключа уже открыто.")
         self._settings_busy = True
         try:
-            api_key = await self._api_key_prompt(spec.label)
+            api_key = await self._api_key_prompt(spec.label, self._language())
             if not api_key:
                 return _error("Ввод API-ключа отменён.")
             settings = self._settings.save(
@@ -259,7 +283,10 @@ class PanelHandler:
             return _error("Другое окно настроек уже открыто.")
         self._settings_busy = True
         try:
-            selected = await self._directory_picker(Path(raw_directory.strip()))
+            selected = await self._directory_picker(
+                Path(raw_directory.strip()),
+                self._language(),
+            )
             if selected is None:
                 return {"ok": True, "cancelled": True}
             return {"ok": True, "download_directory": str(selected)}

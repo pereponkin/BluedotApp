@@ -33,6 +33,7 @@ TEST_APP_HTML = """
 
 PUBLIC_SETTINGS = {
     "browser": "firefox",
+    "language": "ru",
     "selected_provider": "gemini",
     "download_directory": r"D:\Downloads",
     "providers": {
@@ -357,6 +358,71 @@ class PanelBrowserTest(unittest.IsolatedAsyncioTestCase):
 
         await host.locator("[data-role=toggle]").click()
         self.assertFalse(await help_button.is_visible())
+
+    async def test_language_menu_switches_and_persists_the_entire_panel(self):
+        commands = []
+        current_settings = dict(PUBLIC_SETTINGS)
+
+        async def handler(source, command):
+            nonlocal current_settings
+            if command["type"] == "get_settings":
+                return {"ok": True, "settings": current_settings}
+            commands.append(command)
+            if command["type"] == "set_language":
+                current_settings = {
+                    **current_settings,
+                    "language": command["language"],
+                }
+                return {"ok": True, "settings": current_settings}
+            return {"ok": True}
+
+        page = await self.browser.new_page(viewport={"width": 1280, "height": 900})
+        await install_panel(page, handler)
+        await page.route(
+            "https://app.sessions.blue/**",
+            lambda route: route.fulfill(
+                status=200,
+                content_type="text/html",
+                body=TEST_APP_HTML,
+            ),
+        )
+        await page.goto("https://app.sessions.blue/browse")
+        host = page.locator("#bluedot-agent-panel")
+
+        await host.locator("[data-role=language-toggle]").click()
+        self.assertEqual(
+            await host.locator("[data-role=language-menu] button").all_text_contents(),
+            ["RU", "EN"],
+        )
+        await host.locator('[data-language="en"]').click()
+
+        self.assertEqual(
+            await host.locator("[data-role=search]").text_content(),
+            "Search",
+        )
+        self.assertEqual(
+            await host.locator('label[for="bluedot-agent-query"]').text_content(),
+            "Request",
+        )
+        self.assertEqual(
+            await host.locator("[data-role=settings-toggle]").get_attribute("aria-label"),
+            "Settings",
+        )
+        await host.locator("[data-role=help-toggle]").click()
+        self.assertEqual(
+            await host.locator("[data-role=help-tabs] button").all_text_contents(),
+            ["About", "Setup", "Using the app", "AI and data"],
+        )
+
+        await page.reload()
+        self.assertEqual(
+            await host.locator("[data-role=search]").text_content(),
+            "Search",
+        )
+        self.assertEqual(
+            commands,
+            [{"type": "set_language", "language": "en"}],
+        )
 
     async def test_open_help_keeps_focus_inside_the_dialog(self):
         async def handler(source, command):

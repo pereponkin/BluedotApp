@@ -7,13 +7,13 @@ _WINDOWS_V_KEYCODE = 86
 _MAC_V_KEYCODE = 9
 
 
-async def prompt_for_api_key(provider_label: str) -> str | None:
+async def prompt_for_api_key(provider_label: str, language: str = "ru") -> str | None:
     """Ask for a secret outside the provider webpage's DOM."""
 
-    return _prompt_for_api_key_sync(provider_label)
+    return _prompt_for_api_key_sync(provider_label, language)
 
 
-def _prompt_for_api_key_sync(provider_label: str) -> str | None:
+def _prompt_for_api_key_sync(provider_label: str, language: str = "ru") -> str | None:
     try:
         import tkinter as tk
         from tkinter import simpledialog
@@ -28,7 +28,11 @@ def _prompt_for_api_key_sync(provider_label: str) -> str | None:
                 self.attributes("-topmost", True)
                 label = tk.Label(
                     master,
-                    text=f"Введите API-ключ для {provider_label}:",
+                    text=(
+                        f"Enter the API key for {provider_label}:"
+                        if language == "en"
+                        else f"Введите API-ключ для {provider_label}:"
+                    ),
                     justify=tk.LEFT,
                 )
                 label.grid(row=0, padx=5, sticky=tk.W)
@@ -50,7 +54,10 @@ def _prompt_for_api_key_sync(provider_label: str) -> str | None:
             def apply(self) -> None:
                 self.result = self.entry.get()
 
-        dialog = ApiKeyDialog(root, "Blue Dot Agent — API-ключ")
+        dialog = ApiKeyDialog(
+            root,
+            "Blue Dot Agent — API key" if language == "en" else "Blue Dot Agent — API-ключ",
+        )
         value = dialog.result
         return value.strip() if value and value.strip() else None
     finally:

@@ -5,7 +5,10 @@ from pathlib import Path
 from .secret_prompt import _activate_dialog
 
 
-async def choose_download_directory(initial_directory: Path) -> Path | None:
+async def choose_download_directory(
+    initial_directory: Path,
+    language: str = "ru",
+) -> Path | None:
     """Open the system folder picker outside the Blue Dot page DOM."""
 
     try:
@@ -32,7 +35,11 @@ async def choose_download_directory(initial_directory: Path) -> Path | None:
         try:
             selected = filedialog.askdirectory(
                 parent=root,
-                title="Blue Dot Agent — папка для скачивания",
+                title=(
+                    "Blue Dot Agent — download folder"
+                    if language == "en"
+                    else "Blue Dot Agent — папка для скачивания"
+                ),
                 initialdir=str(initial),
                 mustexist=True,
             )
