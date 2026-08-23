@@ -11,3 +11,4 @@ debug_*.png
 __pycache__/
 *.pyc
 calibration_log.jsonl
+.aider*
