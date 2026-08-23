@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import AsyncMock, patch
 
 from bluedot_agent.react_bridge import (
     ADD_SELECTABLE_FILTER_JS,
@@ -29,6 +30,27 @@ async def _result(value):
 
 
 class ReactBridgeTest(unittest.IsolatedAsyncioTestCase):
+    async def test_wait_for_stable_results_uses_short_default_interval(self):
+        settled = {
+            "loadingTracks": False,
+            "loadingMore": False,
+            "firstTracks": [{"title": "A"}],
+        }
+
+        with patch(
+            "bluedot_agent.react_bridge.asyncio.sleep",
+            new_callable=AsyncMock,
+        ) as sleep:
+            result = await wait_for_stable_results(
+                None,
+                timeout=1,
+                stable_samples=3,
+                reader=SequenceReader([settled, settled, settled]),
+            )
+
+        self.assertEqual(result, settled)
+        self.assertEqual([call.args for call in sleep.await_args_list], [(0.2,), (0.2,)])
+
     def test_all_bridge_operations_share_one_provider_finder(self):
         for script in (
             READ_SEARCH_STATE_JS,

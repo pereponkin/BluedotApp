@@ -296,7 +296,7 @@ async def wait_for_stable_results(
     *,
     timeout: float = 30.0,
     stable_samples: int = 3,
-    interval: float = 0.5,
+    interval: float = 0.2,
     reader: Callable[[Any], Awaitable[dict[str, Any] | None]] = read_search_state,
 ) -> dict[str, Any]:
     deadline = asyncio.get_running_loop().time() + timeout
