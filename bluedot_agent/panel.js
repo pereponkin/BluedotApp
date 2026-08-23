@@ -781,16 +781,17 @@
       }
     };
     let statusState = { key: "initial_status", values: {}, text: "", kind: "idle" };
+    const normalizeLanguage = (value) => (value === "en" ? "en" : "ru");
+    const backendTextEn = {
+      "Не удалось открыть скачанный файл.": "Could not open the downloaded file.",
+      "Скачанный файл больше недоступен.": "The downloaded file is no longer available.",
+      "API-ключ не может быть пустым.": "The API key cannot be empty.",
+      "Ввод API-ключа отменён.": "API key entry was cancelled.",
+      "Поиск уже выполняется.": "A search is already running."
+    };
     const localizedBackendText = (text) => {
       if (language === "ru" || !/[А-Яа-яЁё]/.test(text)) return text;
-      const exact = {
-        "Не удалось открыть скачанный файл.": "Could not open the downloaded file.",
-        "Скачанный файл больше недоступен.": "The downloaded file is no longer available.",
-        "API-ключ не может быть пустым.": "The API key cannot be empty.",
-        "Ввод API-ключа отменён.": "API key entry was cancelled.",
-        "Поиск уже выполняется.": "A search is already running."
-      };
-      if (exact[text]) return exact[text];
+      if (backendTextEn[text]) return backendTextEn[text];
       let match = text.match(/^Скачивание началось: (.+)$/);
       if (match) return `Download started: ${match[1]}`;
       match = text.match(/^Скачано: (.+)$/);
@@ -810,7 +811,6 @@
     const setStatus = (text, kind) => {
       statusState = { key: null, values: {}, text, kind };
       renderStatus();
-      status.dataset.kind = kind;
       status.removeAttribute("data-can-open");
       status.tabIndex = -1;
       status.title = "";
@@ -874,8 +874,10 @@
       }
       modelSelect.value = provider ? provider.model : "";
     };
-    const renderKeyState = () => {
-      const selected = settingsState && settingsState.providers[settingsState.selected_provider];
+    const renderKeyState = (provider) => {
+      const selected = provider !== undefined
+        ? provider
+        : settingsState && settingsState.providers[settingsState.selected_provider];
       keyState.textContent = selected && selected.has_api_key
         ? t("key_saved")
         : t("key_missing");
@@ -905,7 +907,7 @@
           setResponseError(response, "settings_load_failure");
           return;
         }
-        language = response.settings.language === "en" ? "en" : "ru";
+        language = normalizeLanguage(response.settings.language);
         renderSettings(response.settings);
         applyLanguage();
         const selected = response.settings.providers[response.settings.selected_provider];
@@ -1131,7 +1133,7 @@
         setResponseError(response, "language_failure");
         return;
       }
-      language = response.settings.language === "en" ? "en" : "ru";
+      language = normalizeLanguage(response.settings.language);
       settingsState = response.settings;
       applyLanguage();
     }));
@@ -1192,10 +1194,7 @@
       const selected = settingsState.providers[providerSelect.value];
       if (!selected) return;
       renderModels(selected);
-      keyState.textContent = selected.has_api_key
-        ? t("key_saved")
-        : t("key_missing");
-      clearApiKey.disabled = !selected.has_api_key;
+      renderKeyState(selected);
     });
     const chooseDownloadDirectory = async () => {
       if (downloadDirectory.dataset.state === "loading") return;

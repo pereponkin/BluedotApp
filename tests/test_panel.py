@@ -466,6 +466,9 @@ class PanelHandlerTest(unittest.IsolatedAsyncioTestCase):
         class Store:
             saved = None
 
+            def language(self):
+                return "ru"
+
             def save(self, **values):
                 self.saved = values
                 return {

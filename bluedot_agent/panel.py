@@ -71,10 +71,7 @@ class PanelHandler:
         self._settings_busy = False
 
     def _language(self) -> str:
-        if self._settings is None:
-            return "ru"
-        reader = getattr(self._settings, "language", None)
-        return reader() if callable(reader) else "ru"
+        return "ru" if self._settings is None else self._settings.language()
 
     async def __call__(self, source: dict[str, Any], command: dict[str, Any]) -> dict[str, Any]:
         frame = source.get("frame") if isinstance(source, dict) else None
@@ -307,7 +304,7 @@ def panel_init_script(run_id: str) -> str:
     """
     source = PANEL_SCRIPT.read_text(encoding="utf-8")
     return source.replace("__BLUEDOT_PANEL_RUN_ID__", run_id).replace(
-        "__BLUEDOT_HELP_CONTENT__", json.dumps(help_document())
+        "__BLUEDOT_HELP_CONTENT__", json.dumps(help_document(), ensure_ascii=False)
     )
 
 
